@@ -1,0 +1,112 @@
+spring:
+  application:
+    name: InfiniteChat-Agent
+  datasource:
+    url: jdbc:mysql://172.24.11.240:3306/bytecoach?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: 172.24.11.240
+      port: 6379
+      password: 123456
+      ttl: 3600
+      timeout: 30000
+  sql:
+    init:
+      mode: always
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 463019380
+    password: atkzlamfdwkcbgjd  #授权码 不是密码
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: 10010
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    dev.langchain4j.mcp: ERROR
+    com.shanyangcode.infintechatagent.rag: INFO
+    com.shanyangcode.infintechatagent.memory: DEBUG
+    org.springframework.web: WARN
+    com.fasterxml.jackson: WARN
+
+milvus:
+  host: 172.24.11.240
+  port: 19530
+  username:
+  password:
+  collection-name: collection_rag
+  dimension: 1024
+
+langchain4j:
+  community:
+    dashscope:
+      chat-model:
+        model-name: qwen-max
+        api-key: sk-37502d5da59e4747974b716780878330
+      streaming-chat-model:
+        model-name: qwen-max
+        api-key: sk-37502d5da59e4747974b716780878330
+      embedding-model:
+        model-name: text-embedding-v4
+        api-key: sk-37502d5da59e4747974b716780878330
+      rerank-model:
+        model-name: qwen3-rerank
+        api-key: sk-37502d5da59e4747974b716780878330
+        enabled: false
+
+rerank:
+  test:
+    enabled: false
+
+bigmodel:
+  api-key: bcfae528116e45e7af758acfc7a5f945.8iTgkbEl1V7FnVOT
+
+rag:
+  docs-path: D:\BaiduNetdiskDownload\ByteCoach\src\main\resources\docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+chat:
+  memory:
+    max-messages: 20
+    compression:
+      token-threshold: 6000
+      recent-rounds: 5
+      recent-token-limit: 2000
+      summary-token-limit: 500
+      summary-prompt: "请将以下对话历史压缩为简洁摘要，严格控制在{tokenLimit} tokens以内，必须保留用户偏好、重要决策、核心诉求等关键信息，去除无意义寒暄：\n{messages}"
+      fallback-recent-rounds: 10
+    redis:
+      ttl-seconds: 3600
+      lock:
+        expire-seconds: 5
+        retry-times: 3
+        retry-interval-ms: 100
+
+app:
+  chat:
+    persistence:
+      producer-endpoint: localhost:8081
+      consumer-endpoint: localhost:8081
+      topic: chat-persistence-topic
+      tag: persistence
+      consumer-group: chat-persistence-consumer
