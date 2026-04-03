@@ -7,6 +7,7 @@ import com.shanyangcode.infintechatagent.tool.EmailTool;
 import com.shanyangcode.infintechatagent.tool.RagTool;
 import com.shanyangcode.infintechatagent.tool.TimeTool;
 import dev.langchain4j.community.store.memory.chat.redis.RedisChatMemoryStore;
+import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
@@ -69,6 +70,9 @@ public class AiChatService {
                 ))
                 .tools(new TimeTool(), ragTool, emailTool)
                 .toolProvider(mcpToolProvider)
+                //调用工具出现幻觉解决策略
+                .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
+                        toolExecutionRequest, "错误：没有名为 " + toolExecutionRequest.name() + " 的工具"))
                 .build();
     }
 }
