@@ -10,7 +10,7 @@ import dev.langchain4j.community.store.memory.chat.redis.RedisChatMemoryStore;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
-import dev.langchain4j.rag.content.retriever.ContentRetriever;
+import dev.langchain4j.rag.RetrievalAugmentor;
 import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
@@ -39,7 +39,7 @@ public class AiChatService {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Resource
-    private ContentRetriever contentRetriever;
+    private RetrievalAugmentor retrievalAugmentor;
 
     @Resource
     private RagTool ragTool;
@@ -52,11 +52,9 @@ public class AiChatService {
 
     @Bean
     public AiChat aiChat() {
-
-        //把结构提供给AiServices，会自动创建代理对象，就相当于一个agent了
         return AiServices.builder(AiChat.class)
                 .streamingChatModel(streamingChatModel)
-                .contentRetriever(contentRetriever)
+                .retrievalAugmentor(retrievalAugmentor)
                 .chatMemoryProvider(memoryId -> new CompressibleChatMemory(
                         memoryId,
                         redisChatMemoryStore,
@@ -73,5 +71,4 @@ public class AiChatService {
                 .toolProvider(mcpToolProvider)
                 .build();
     }
-
 }

@@ -79,7 +79,6 @@ public class TokenCountChatMemoryCompressor {
         if (messages.isEmpty()) {
             return "";
         }
-
         if (summaryChatModel != null) {
             try {
                 String prompt = buildSummaryPrompt(messages);

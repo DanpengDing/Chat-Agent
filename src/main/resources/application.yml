@@ -2,13 +2,13 @@ spring:
   application:
     name: InfiniteChat-Agent
   datasource:
-    url: jdbc:mysql://172.24.11.240:3306/bytecoach?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://127.0.0.1:3306/bytecoach?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: 172.24.11.240
+      host: 47.93.226.243
       port: 6379
       password: 123456
       ttl: 3600
@@ -42,7 +42,7 @@ logging:
     com.fasterxml.jackson: WARN
 
 milvus:
-  host: 172.24.11.240
+  host: 47.93.226.243
   port: 19530
   username:
   password:
@@ -105,8 +105,8 @@ chat:
 app:
   chat:
     persistence:
-      producer-endpoint: localhost:8081
-      consumer-endpoint: localhost:8081
+      producer-endpoint: 127.0.0.1:8081
+      consumer-endpoint: 127.0.0.1:8081
       topic: chat-persistence-topic
       tag: persistence
       consumer-group: chat-persistence-consumer

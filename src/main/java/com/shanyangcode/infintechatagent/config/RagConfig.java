@@ -1,29 +1,29 @@
 package com.shanyangcode.infintechatagent.config;
 
-
-import com.shanyangcode.infintechatagent.Monitor.ObservabilityLogger;
-import com.shanyangcode.infintechatagent.Monitor.RagMetricsCollector;
-import com.shanyangcode.infintechatagent.rag.QwenRerankClient;
+import com.shanyangcode.infintechatagent.rag.QwenScoringModel;
 import com.shanyangcode.infintechatagent.rag.QueryPreprocessor;
 import com.shanyangcode.infintechatagent.rag.RecursiveDocumentSplitter;
-import com.shanyangcode.infintechatagent.rag.ReRankingContentRetriever;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.rag.DefaultRetrievalAugmentor;
+import dev.langchain4j.rag.RetrievalAugmentor;
+import dev.langchain4j.rag.content.aggregator.ReRankingContentAggregator;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
+import dev.langchain4j.rag.query.Query;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 @Slf4j
 @SuppressWarnings({"all"})
 public class RagConfig {
-
 
     @Resource
     private EmbeddingModel embeddingModel;
@@ -32,23 +32,11 @@ public class RagConfig {
     private EmbeddingStore<TextSegment> embeddingStore;
 
     @Resource
-    private QwenRerankClient rerankClient;
-
-    @Resource
     private QueryPreprocessor queryPreprocessor;
-
-    @Resource
-    private RagMetricsCollector ragMetricsCollector;
-
-    @Resource
-    private ObservabilityLogger observabilityLogger;
-
-    @Value("${rag.docs-path}")
-    private String docsPath;
 
     @Bean
     public EmbeddingStoreIngestor embeddingStoreIngestor() {
-        log.info("🔧 创建递归文档分割器 - maxChunkSize:800, chunkOverlap:200");
+        log.info("[RAG] create EmbeddingStoreIngestor, chunkSize=800, overlap=200");
         RecursiveDocumentSplitter splitter = new RecursiveDocumentSplitter(800, 200);
 
         return EmbeddingStoreIngestor.builder()
@@ -62,33 +50,39 @@ public class RagConfig {
                 .build();
     }
 
-
-
     @Bean
     public ContentRetriever contentRetriever() {
-        log.info("🚀 [RAG配置] 初始化ContentRetriever");
-
-        ContentRetriever baseRetriever = EmbeddingStoreContentRetriever.builder()
+        log.info("[RAG] init base content retriever");
+        return EmbeddingStoreContentRetriever.builder()
                 .embeddingStore(embeddingStore)
                 .embeddingModel(embeddingModel)
-                .maxResults(30)  // 增加召回数量
-                .minScore(0.55)  // 降低阈值，提高召回率
+                .maxResults(30)
+                .minScore(0.55)
+                .build();
+    }
+
+    @Bean
+    public RetrievalAugmentor retrievalAugmentor(ContentRetriever contentRetriever,
+                                                 QwenScoringModel qwenScoringModel) {
+        ReRankingContentAggregator contentAggregator = ReRankingContentAggregator.builder()
+                //rerank模型
+                .scoringModel(qwenScoringModel)
+                .minScore(0.55)
+                .maxResults(5)
                 .build();
 
-        log.info("✅ [RAG配置] 粗排配置: maxResults=30, minScore=0.55");
+        RetrievalAugmentor retrievalAugmentor = DefaultRetrievalAugmentor.builder()
+                .queryTransformer(query -> {
+                    String processedQuery = queryPreprocessor == null
+                            ? query.text()
+                            : queryPreprocessor.preprocess(query.text());
+                    return List.of(Query.from(processedQuery, query.metadata()));
+                })
+                .contentRetriever(contentRetriever)
+                .contentAggregator(contentAggregator)
+                .build();
 
-        ReRankingContentRetriever retriever = new ReRankingContentRetriever(
-            baseRetriever,
-            rerankClient,
-            5,
-            queryPreprocessor,
-            ragMetricsCollector,
-            observabilityLogger
-        );
-
-        log.info("✅ [RAG配置] Rerank精排配置: finalTopN=5, 查询预处理已启用");
-        log.info("🎯 [RAG配置] ContentRetriever初始化完成");
-
-        return retriever;
+        log.info("[RAG] init retrieval augmentor with official rerank aggregator");
+        return retrievalAugmentor;
     }
 }

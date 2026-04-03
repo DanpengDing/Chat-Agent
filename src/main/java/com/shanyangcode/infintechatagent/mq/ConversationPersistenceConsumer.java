@@ -77,10 +77,27 @@ public class ConversationPersistenceConsumer {
                 for (MessageView messageView : messages) {
                     handleMessage(messageView);
                 }
+            } catch (RuntimeException e) {
+                if (isInterrupted(e)) {
+                    Thread.currentThread().interrupt();
+                    log.info("RocketMQ consumer loop interrupted during shutdown");
+                    break;
+                }
+                log.error("Unexpected runtime error in RocketMQ consume loop", e);
+                sleepQuietly(1000);
             } catch (ClientException e) {
+                if (!running.get()) {
+                    log.info("RocketMQ consumer stopped");
+                    break;
+                }
                 log.error("Failed to receive RocketMQ messages", e);
                 sleepQuietly(1000);
             } catch (Exception e) {
+                if (e instanceof InterruptedException || !running.get()) {
+                    Thread.currentThread().interrupt();
+                    log.info("RocketMQ consumer loop interrupted during shutdown");
+                    break;
+                }
                 log.error("Unexpected error in RocketMQ consume loop", e);
                 sleepQuietly(1000);
             }
@@ -127,22 +144,33 @@ public class ConversationPersistenceConsumer {
         }
     }
 
+    private boolean isInterrupted(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof InterruptedException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
     @PreDestroy
     public void destroy() {
         running.set(false);
+        if (consumer != null) {
+            try {
+                consumer.close();
+            } catch (IOException e) {
+                log.warn("Failed to close RocketMQ consumer cleanly", e);
+            }
+        }
         if (executorService != null) {
             executorService.shutdownNow();
             try {
                 executorService.awaitTermination(5, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-            }
-        }
-        if (consumer != null) {
-            try {
-                consumer.close();
-            } catch (IOException e) {
-                log.warn("Failed to close RocketMQ consumer cleanly", e);
             }
         }
     }
